@@ -1,0 +1,15 @@
+[project]
+name = "csv-processor"
+version = "0.9.0-beta"
+description = "EDI file processor with data integrity validation"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "chardet>=5.2.0",
+    "numpy>=2.3.2",
+    "openpyxl>=3.1.5",
+    "pandas>=2.3.1",
+    "py7zr>=1.0.0",
+    "rich>=13.7.0",
+    "watchdog>=6.0.0",
+]

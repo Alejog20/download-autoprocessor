@@ -1,0 +1,119 @@
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs - SENSITIVE: may contain file paths and processing history
+*.log
+logs/
+file_processing.log
+
+# Data files - SENSITIVE: EDI data and business information
+*.csv
+*.xlsx
+*.xls
+*.xlsm
+*.zip
+*.7z
+*.rar
+*.tar
+*.gz
+*.json
+*.xml
+*.txt
+*.dat
+*.edi
+
+# Temporary files
+*.tmp
+*.temp
+*.crdownload
+*.part
+
+# Test data and outputs - may contain sensitive examples
+test_data/
+tests/fixtures/
+output/
+processed/
+downloads/
+temp/
+
+# Documentation that might contain sensitive examples
+docs/
+documentation/
+examples/
+samples/
+
+# Configuration files - may contain paths or credentials
+*.ini
+*.cfg
+*.conf
+config.json
+settings.json
+.env
+.env.*
+
+# All directories except explicitly allowed ones
+*/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Build and distribution
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Coverage and testing
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# Jupyter notebooks - may contain sensitive data examples
+*.ipynb
+.ipynb_checkpoints/
+
+# Allow specific files
+# Core application files
+!main.py
+!test_main.py
+!test_csv_conversion.py
+
+# Project documentation
+!README.md
+!CLAUDE.md
+
+# Project configuration
+!pyproject.toml
+!uv.lock
+!requirements.txt
+
+# Allow .github directory for CI/CD
+!.github/
