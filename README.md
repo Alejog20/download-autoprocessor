@@ -70,11 +70,16 @@ pip install chardet numpy openpyxl pandas py7zr rich watchdog
 python main.py
 ```
 
+![Initiation of the main.py script](assets/SS1.png)
+
 The processor will:
-1. Display professional ASCII art banner
+1. Display art banner
 2. Show system status panel
 3. Begin monitoring your Downloads folder
 4. Process files automatically as they appear
+
+![Automatic ZIP/7Z extraction and skipping unsupported XML files](assets/SS3.png)
+
 
 ### Stop the Processor
 
@@ -114,6 +119,9 @@ Every CSV conversion undergoes comprehensive validation:
 **Fail**: Both CSV and XLSX retained for manual review
 
 ### Example Output
+
+![Successful processing of a CSV file, showing encoding detection and conversion to XLSX](assets/SS2.png)
+
 
 ```
 >>> Processing CSV: invoice_data.csv
