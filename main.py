@@ -64,9 +64,33 @@ def detect_file_encoding(file_path: Path, sample_size: int = 100000) -> str:
     return 'utf-8'
 
 
-def read_csv_with_encoding(file_path: Path) -> Optional[pd.DataFrame]:
-    encoding = detect_file_encoding(file_path)
+def try_parse_csv_with_strategy(
+    file_path: Path,
+    encoding: str,
+    engine: str = 'c',
+    on_bad_lines: str = 'error',
+    quoting: int = 0,
+    delimiter: str = ','
+) -> Optional[pd.DataFrame]:
+    try:
+        df = pd.read_csv(
+            file_path,
+            encoding=encoding,
+            low_memory=False,
+            engine=engine,
+            on_bad_lines=on_bad_lines,
+            quoting=quoting,
+            delimiter=delimiter
+        )
+        return df
+    except Exception:
+        return None
 
+
+def read_csv_with_encoding(file_path: Path) -> Optional[pd.DataFrame]:
+    import csv
+
+    encoding = detect_file_encoding(file_path)
     encodings_to_try = [encoding, 'utf-8', 'latin-1', 'cp1252', 'iso-8859-1']
     encodings_to_try = list(dict.fromkeys(encodings_to_try))
 
@@ -77,6 +101,33 @@ def read_csv_with_encoding(file_path: Path) -> Optional[pd.DataFrame]:
             return df
         except (UnicodeDecodeError, UnicodeError):
             continue
+        except pd.errors.ParserError as e:
+            error_msg = str(e)
+            if "expected" in error_msg.lower() and "fields" in error_msg.lower():
+                ui.logger.warning(f"Malformed CSV detected with {enc}: {e}")
+                ui.logger.info("Attempting fallback parsing strategies...")
+
+                strategies = [
+                    ("Python engine with error skip", enc, 'python', 'skip', csv.QUOTE_MINIMAL, ','),
+                    ("Python engine with error warn", enc, 'python', 'warn', csv.QUOTE_MINIMAL, ','),
+                    ("C engine with QUOTE_ALL", enc, 'c', 'error', csv.QUOTE_ALL, ','),
+                    ("C engine with QUOTE_NONE", enc, 'c', 'error', csv.QUOTE_NONE, ','),
+                    ("Python engine with QUOTE_ALL", enc, 'python', 'warn', csv.QUOTE_ALL, ','),
+                ]
+
+                for strategy_name, *args in strategies:
+                    ui.logger.dim(f"Trying: {strategy_name}")
+                    df = try_parse_csv_with_strategy(file_path, *args)
+                    if df is not None:
+                        ui.logger.success(f"CSV parsed successfully using: {strategy_name}")
+                        ui.logger.dim(f"Successfully read CSV with encoding: {enc}")
+                        return df
+
+                ui.logger.error(f"All parsing strategies failed for encoding {enc}")
+                continue
+            else:
+                ui.logger.error(f"Error reading CSV with {enc}: {e}")
+                continue
         except Exception as e:
             ui.logger.error(f"Error reading CSV with {enc}: {e}")
             continue
@@ -238,8 +289,8 @@ def process_7z_file(file_path: Path, extract_to_path: Path) -> bool:
 class DownloadHandler(FileSystemEventHandler):
 
     def process_file(self, file_path: Path) -> None:
-        ui.logger.dim(f"Waiting 5 seconds before processing {file_path.name}...")
-        time.sleep(5)
+        ui.logger.dim(f"Waiting 3 seconds before processing {file_path.name}...")
+        time.sleep(3)
 
         if not file_path.exists():
             ui.logger.dim(f"{file_path.name} no longer exists. Skipping.")

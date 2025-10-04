@@ -1,9 +1,9 @@
 # CSV EDI File Processor
 
-**Version:** 0.9.0-beta
-**Status:** Beta - Production Testing Phase
+**Version:** 0.9.1
+**Status:** Production Ready
 
-Professional-grade EDI file processor with data integrity validation, automatic encoding detection, and type preservation. Monitors your Downloads folder and automatically processes CSV, ZIP, and 7z files with comprehensive validation.
+Professional-grade EDI file processor with data integrity validation, automatic encoding detection, type preservation, and malformed CSV recovery. Monitors your Downloads folder and automatically processes CSV, ZIP, and 7z files with comprehensive validation.
 
 ---
 
@@ -29,6 +29,10 @@ Professional-grade EDI file processor with data integrity validation, automatic 
 - **Precision Preservation**: 15-digit floating-point precision maintained
 - **Type Intelligence**: Smart numeric type inference without data loss
 - **Error Recovery**: Graceful handling of corrupted or malformed files
+- **Malformed CSV Recovery**: Automatic fallback strategies for CSVs with inconsistent field counts
+  - 5-stage parsing strategy: Python engine with error handling, multiple quoting strategies
+  - Handles unquoted commas, missing quote escaping, and irregular delimiters
+  - Detailed logging shows which strategy succeeded
 
 ---
 
