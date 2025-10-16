@@ -136,6 +136,38 @@ def read_csv_with_encoding(file_path: Path) -> Optional[pd.DataFrame]:
     return None
 
 
+def detect_dat_headers(file_path: Path, encoding: str) -> bool:
+    """
+    Detect if a .dat file has a header row.
+    Returns True if headers detected, False if headerless data.
+    """
+    try:
+        with open(file_path, 'r', encoding=encoding) as f:
+            first_line = f.readline().strip()
+            second_line = f.readline().strip()
+
+        if not first_line or not second_line:
+            return False
+
+        # Simple heuristic: check if first row is significantly different from second row
+        # Headers typically contain more alphabetic characters and fewer numbers
+        import re
+
+        first_alpha_ratio = len(re.findall(r'[a-zA-Z]', first_line)) / max(len(first_line), 1)
+        second_alpha_ratio = len(re.findall(r'[a-zA-Z]', second_line)) / max(len(second_line), 1)
+
+        # If first row has significantly more alphabetic content, it's likely a header
+        if first_alpha_ratio > 0.3 and first_alpha_ratio > second_alpha_ratio * 1.5:
+            return True
+
+        # Default to no headers for .dat files (common EDI format)
+        return False
+
+    except Exception as e:
+        ui.logger.warning(f"Could not detect headers: {e}. Assuming no headers.")
+        return False
+
+
 def preserve_numeric_precision(df: pd.DataFrame) -> pd.DataFrame:
     df_copy = df.copy()
 
@@ -255,6 +287,182 @@ def process_csv_file(file_path: Path) -> bool:
         return False
 
 
+def read_dat_with_encoding(file_path: Path) -> Optional[pd.DataFrame]:
+    """
+    Read a .dat file with automatic encoding detection and header detection.
+    Supports both headered and headerless .dat files.
+    """
+    import csv
+
+    encoding = detect_file_encoding(file_path)
+    has_headers = detect_dat_headers(file_path, encoding)
+
+    if has_headers:
+        ui.logger.dim("Headers detected in .dat file")
+    else:
+        ui.logger.dim("No headers detected - generating column names")
+
+    encodings_to_try = [encoding, 'utf-8', 'latin-1', 'cp1252', 'iso-8859-1']
+    encodings_to_try = list(dict.fromkeys(encodings_to_try))
+
+    for enc in encodings_to_try:
+        try:
+            if has_headers:
+                df = pd.read_csv(file_path, encoding=enc, low_memory=False)
+            else:
+                # Read without headers and generate column names
+                df = pd.read_csv(file_path, encoding=enc, low_memory=False, header=None)
+                # Generate column names: Column_1, Column_2, etc.
+                df.columns = [f"Column_{i+1}" for i in range(len(df.columns))]
+
+            ui.logger.dim(f"Successfully read .dat file with encoding: {enc}")
+            return df
+
+        except (UnicodeDecodeError, UnicodeError):
+            continue
+        except pd.errors.ParserError as e:
+            error_msg = str(e)
+            if "expected" in error_msg.lower() and "fields" in error_msg.lower():
+                ui.logger.warning(f"Malformed .dat file detected with {enc}: {e}")
+                ui.logger.info("Attempting fallback parsing strategies...")
+
+                strategies = [
+                    ("Python engine with error skip", enc, 'python', 'skip', csv.QUOTE_MINIMAL, ','),
+                    ("Python engine with error warn", enc, 'python', 'warn', csv.QUOTE_MINIMAL, ','),
+                    ("C engine with QUOTE_ALL", enc, 'c', 'error', csv.QUOTE_ALL, ','),
+                    ("C engine with QUOTE_NONE", enc, 'c', 'error', csv.QUOTE_NONE, ','),
+                    ("Python engine with QUOTE_ALL", enc, 'python', 'warn', csv.QUOTE_ALL, ','),
+                ]
+
+                for strategy_name, *args in strategies:
+                    ui.logger.dim(f"Trying: {strategy_name}")
+                    df = try_parse_csv_with_strategy(file_path, *args)
+                    if df is not None:
+                        # Generate column names if no headers
+                        if not has_headers and df.shape[1] > 0:
+                            df.columns = [f"Column_{i+1}" for i in range(len(df.columns))]
+                        ui.logger.success(f".dat file parsed successfully using: {strategy_name}")
+                        ui.logger.dim(f"Successfully read .dat file with encoding: {enc}")
+                        return df
+
+                ui.logger.error(f"All parsing strategies failed for encoding {enc}")
+                continue
+            else:
+                ui.logger.error(f"Error reading .dat file with {enc}: {e}")
+                continue
+        except Exception as e:
+            ui.logger.error(f"Error reading .dat file with {enc}: {e}")
+            continue
+
+    ui.logger.error("Failed to read .dat file with any encoding")
+    return None
+
+
+def validate_dat_conversion(dat_path: Path, xlsx_path: Path) -> ValidationResult:
+    """
+    Validate .dat to XLSX conversion with same rigor as CSV validation.
+    """
+    try:
+        df_dat = read_dat_with_encoding(dat_path)
+        if df_dat is None:
+            return ValidationResult(False, False, False, False)
+
+        df_xlsx = pd.read_excel(xlsx_path)
+
+        dimensions_match = df_dat.shape == df_xlsx.shape
+        columns_match = list(df_dat.columns) == list(df_xlsx.columns)
+
+        data_types_preserved = True
+        for col in df_dat.columns:
+            dat_dtype = df_dat[col].dtype
+            xlsx_dtype = df_xlsx[col].dtype
+
+            if dat_dtype != xlsx_dtype:
+                if not (pd.api.types.is_numeric_dtype(dat_dtype) and
+                       pd.api.types.is_numeric_dtype(xlsx_dtype)):
+                    data_types_preserved = False
+                    ui.logger.warning(f"Type change in column '{col}': {dat_dtype} -> {xlsx_dtype}")
+
+        sample_data_match = True
+        if len(df_dat) > 0:
+            sample_size = min(5, len(df_dat))
+            for i in range(sample_size):
+                for col in df_dat.columns:
+                    dat_val = df_dat.iloc[i][col]
+                    xlsx_val = df_xlsx.iloc[i][col]
+
+                    if pd.isna(dat_val) and pd.isna(xlsx_val):
+                        continue
+
+                    if pd.api.types.is_numeric_dtype(type(dat_val)) and pd.api.types.is_numeric_dtype(type(xlsx_val)):
+                        if abs(float(dat_val) - float(xlsx_val)) > 1e-6:
+                            sample_data_match = False
+                            ui.logger.warning(f"Data mismatch at row {i}, col '{col}': {dat_val} != {xlsx_val}")
+                    elif str(dat_val) != str(xlsx_val):
+                        sample_data_match = False
+                        ui.logger.warning(f"Data mismatch at row {i}, col '{col}': {dat_val} != {xlsx_val}")
+
+        return ValidationResult(
+            dimensions_match=dimensions_match,
+            columns_match=columns_match,
+            data_types_preserved=data_types_preserved,
+            sample_data_match=sample_data_match
+        )
+
+    except Exception as e:
+        ui.logger.error(f"Validation error: {e}")
+        return ValidationResult(False, False, False, False)
+
+
+def process_dat_file(file_path: Path) -> bool:
+    """
+    Process .dat files (typically headerless EDI data) to XLSX format.
+    Handles encoding detection, header detection, and data validation.
+    """
+    try:
+        ui.display_processing_start(file_path.name, "DAT")
+        xlsx_path = file_path.with_suffix(".xlsx")
+
+        df = read_dat_with_encoding(file_path)
+        if df is None:
+            return False
+
+        if df.empty:
+            ui.logger.warning(f".dat file {file_path.name} is empty. Skipping conversion.")
+            return False
+
+        ui.logger.info(f".dat dimensions: {df.shape[0]} rows x {df.shape[1]} columns")
+
+        df_processed = preserve_numeric_precision(df)
+
+        with pd.ExcelWriter(xlsx_path, engine='openpyxl') as writer:
+            df_processed.to_excel(writer, index=False, float_format='%.15g')
+
+        ui.logger.success(f"Converted to: {xlsx_path.name}")
+
+        validation = validate_dat_conversion(file_path, xlsx_path)
+
+        ui.display_validation_result(
+            validation.is_valid,
+            validation.dimensions_match,
+            validation.columns_match,
+            validation.data_types_preserved,
+            validation.sample_data_match
+        )
+
+        if validation.is_valid:
+            file_path.unlink()
+            ui.logger.dim(f"Removed original .dat file: {file_path.name}")
+            return True
+        else:
+            ui.logger.error("Keeping original .dat file due to validation failure")
+            return False
+
+    except Exception as e:
+        ui.logger.error(f"Failed to process {file_path.name}. Error: {e}")
+        return False
+
+
 def process_zip_file(file_path: Path, extract_to_path: Path) -> bool:
     try:
         ui.display_processing_start(file_path.name, "ZIP")
@@ -306,6 +514,8 @@ class DownloadHandler(FileSystemEventHandler):
         match suffix:
             case '.csv':
                 process_csv_file(file_path)
+            case '.dat':
+                process_dat_file(file_path)
             case '.zip':
                 process_zip_file(file_path, downloads_path)
             case '.7z':

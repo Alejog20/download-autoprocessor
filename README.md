@@ -1,9 +1,9 @@
 # CSV EDI File Processor
 
-**Version:** 0.9.1
+**Version:** 1.0.0
 **Status:** Production Ready
 
-Professional-grade EDI file processor with data integrity validation, automatic encoding detection, type preservation, and malformed CSV recovery. Monitors your Downloads folder and automatically processes CSV, ZIP, and 7z files with comprehensive validation.
+Professional-grade EDI file processor with data integrity validation, automatic encoding detection, type preservation, and malformed CSV recovery. Monitors your Downloads folder and automatically processes CSV, DAT, ZIP, and 7z files with comprehensive validation.
 
 ---
 
@@ -11,7 +11,8 @@ Professional-grade EDI file processor with data integrity validation, automatic 
 
 ### Core Functionality
 - **Automatic File Monitoring**: Real-time watchdog monitoring of Downloads directory
-- **CSV to XLSX Conversion**: High-fidelity conversion with data integrity validation
+- **CSV/DAT to XLSX Conversion**: High-fidelity conversion with data integrity validation
+- **Headerless File Support**: Automatic header detection and generation for .dat files
 - **Archive Extraction**: Automatic decompression of ZIP and 7z files
 - **Modern CLI Interface**: Professional colored terminal output with Rich library
 
@@ -94,6 +95,7 @@ Press `Ctrl+C` to gracefully shutdown the processor.
 | Extension | Action | Output |
 |-----------|--------|--------|
 | `.csv` | Convert to XLSX with validation | `.xlsx` file (CSV deleted if valid) |
+| `.dat` | Convert to XLSX with header detection | `.xlsx` file (DAT deleted if valid) |
 | `.zip` | Extract contents | Files extracted to same directory |
 | `.7z` | Extract contents | Files extracted to same directory |
 
@@ -108,7 +110,7 @@ Temporary files are automatically ignored:
 
 ## Data Integrity Validation
 
-Every CSV conversion undergoes comprehensive validation:
+Every CSV and DAT conversion undergoes comprehensive validation:
 
 ### Validation Checks
 
@@ -119,8 +121,8 @@ Every CSV conversion undergoes comprehensive validation:
 
 ### Validation Outcomes
 
-**Pass**: Original CSV deleted, XLSX file retained
-**Fail**: Both CSV and XLSX retained for manual review
+**Pass**: Original file deleted, XLSX file retained
+**Fail**: Both original and XLSX files retained for manual review
 
 ### Example Output
 

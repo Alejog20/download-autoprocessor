@@ -28,8 +28,8 @@ BANNER = r"""
     ##    ## ##    ## ##       ##       ##     ## ##    ##
      ######   ######  ######## ######## ########   ######
 
-            File Processor v0.9.0-beta
-         CSV to XLSX with Data Integrity Validation
+            File Processor v1.0.0
+    CSV/DAT to XLSX with Data Integrity Validation
 
    ================================================================
 """

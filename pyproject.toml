@@ -1,7 +1,7 @@
 [project]
 name = "csv-processor"
-version = "0.9.0-beta"
-description = "EDI file processor with data integrity validation"
+version = "1.0.0"
+description = "EDI file processor with data integrity validation and DAT file support"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
